@@ -1,4 +1,4 @@
-# Maintainer: User <me@kam1k4dze.com>
+# Maintainer: Kamk14dze <me[at]kam1k4dze.com>
 pkgname=inspect-deps
 pkgver=0.1.0
 pkgrel=1
@@ -9,7 +9,7 @@ license=('MIT')
 depends=('python' 'binutils' 'pacman')
 makedepends=('python-build' 'python-installer' 'python-wheel' 'python-hatchling')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('113204730cd43aaea48bbd5ab5477eb515769282e29b6a7484f7795f67417074')
+sha256sums=('33becf070fa434889c5d744927df6f995ef8646e6871cc36fff4527debdc1374')
 
 build() {
   cd "$pkgname-$pkgver"
