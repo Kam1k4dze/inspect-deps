@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "inspect-deps"
-version = "0.1.0"
+version = "0.1.1"
 description = "ELF dependency analyzer for Arch Linux"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -12,3 +12,8 @@ dependencies = []
 
 [project.scripts]
 inspect-deps = "inspect_deps.main:main"
+
+[dependency-groups]
+dev = [
+    "shtab>=1.8.0",
+]

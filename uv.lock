@@ -1,8 +1,27 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.11"
 
 [[package]]
 name = "inspect-deps"
 version = "0.1.0"
 source = { editable = "." }
+
+[package.dev-dependencies]
+dev = [
+    { name = "shtab" },
+]
+
+[package.metadata]
+
+[package.metadata.requires-dev]
+dev = [{ name = "shtab", specifier = ">=1.8.0" }]
+
+[[package]]
+name = "shtab"
+version = "1.8.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b0/7a/7f131b6082d8b592c32e4312d0a6da3d0b28b8f0d305ddd93e49c9d89929/shtab-1.8.0.tar.gz", hash = "sha256:75f16d42178882b7f7126a0c2cb3c848daed2f4f5a276dd1ded75921cc4d073a", size = 46062, upload-time = "2025-11-18T10:57:47.601Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8e/e1/202a31727b0d096a04380f78e809074d7a1d0a22d9d5a39fea1d2353fd02/shtab-1.8.0-py3-none-any.whl", hash = "sha256:f0922a82174b4007e06ac0bac4f79abd826c5cca88e201bfd927f889803c571d", size = 14457, upload-time = "2025-11-18T10:57:45.906Z" },
+]

@@ -20,5 +20,9 @@ package() {
   cd "$pkgname-$pkgver"
   python -m installer --destdir="$pkgdir" dist/*.whl
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+
+  install -Dm644 completions/inspect-deps.bash "$pkgdir/usr/share/bash-completion/completions/inspect-deps"
+  install -Dm644 completions/_inspect-deps "$pkgdir/usr/share/zsh/site-functions/_inspect-deps"
+  install -Dm644 completions/inspect-deps.fish "$pkgdir/usr/share/fish/vendor_completions.d/inspect-deps.fish"
 }
 

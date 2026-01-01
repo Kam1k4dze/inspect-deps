@@ -136,7 +136,7 @@ def print_tree(graph: DepGraph, root: str):
     for i, k in enumerate(sorted(graph.forward.get(root, []))): rec(k, "", i == len(graph.forward[root]) - 1)
 
 
-def main():
+def get_parser():
     parser = argparse.ArgumentParser(description="inspect-deps: ELF dependency analyzer")
     parser.add_argument("elf", help="Target binary")
     mode = parser.add_mutually_exclusive_group()
@@ -147,6 +147,11 @@ def main():
     mode.add_argument("--dot", metavar="FILE")
     parser.add_argument("--all-reasons", action="store_true")
     parser.add_argument("--show-stdlib", action="store_true")
+    return parser
+
+
+def main():
+    parser = get_parser()
     args = parser.parse_args()
 
     target = Path(args.elf).resolve()
