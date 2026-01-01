@@ -140,13 +140,13 @@ def get_parser():
     parser = argparse.ArgumentParser(description="inspect-deps: ELF dependency analyzer")
     parser.add_argument("elf", help="Target binary")
     mode = parser.add_mutually_exclusive_group()
-    mode.add_argument("--tree", action="store_true")
-    mode.add_argument("--pkg-list", action="store_true")
-    mode.add_argument("--json", action="store_true")
-    mode.add_argument("--why", metavar="LIB")
-    mode.add_argument("--dot", metavar="FILE")
-    parser.add_argument("--all-reasons", action="store_true")
-    parser.add_argument("--show-stdlib", action="store_true")
+    mode.add_argument("--tree", action="store_true", help="Show dependency tree")
+    mode.add_argument("--pkg-list", action="store_true", help="Show list of packages")
+    mode.add_argument("--json", action="store_true", help="Output in JSON format")
+    mode.add_argument("--why", metavar="LIB", help="Explain why a library is needed")
+    mode.add_argument("--dot", metavar="FILE", help="Generate DOT graph file")
+    parser.add_argument("--all-reasons", action="store_true", help="Show all reasons for dependency")
+    parser.add_argument("--show-stdlib", action="store_true", help="Show standard library dependencies")
     return parser
 
 

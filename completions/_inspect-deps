@@ -12,13 +12,13 @@ _shtab_inspect_deps_commands() {
 
 _shtab_inspect_deps_options=(
   "(- : *)"{-h,--help}"[show this help message and exit]"
-  "--tree[]"
-  "--pkg-list[]"
-  "--json[]"
-  "--why[]:why:"
-  "--dot[]:dot:"
-  "--all-reasons[]"
-  "--show-stdlib[]"
+  "--tree[Show dependency tree]"
+  "--pkg-list[Show list of packages]"
+  "--json[Output in JSON format]"
+  "--why[Explain why a library is needed]:why:"
+  "--dot[Generate DOT graph file]:dot:"
+  "--all-reasons[Show all reasons for dependency]"
+  "--show-stdlib[Show standard library dependencies]"
   ":Target binary:"
 )
 
