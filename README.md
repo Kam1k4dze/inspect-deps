@@ -6,6 +6,7 @@ A command-line tool for analyzing ELF shared library dependencies and optionally
 ## Features
 
 - Dependency tree visualization (handles cycles).
+- **Safer than ldd**: Performs static analysis (ELF parsing) without executing the binary, making it safe for inspecting untrusted files.
 - RPATH/RUNPATH support (including $ORIGIN).
 - Package resolution via libalpm (Pacman).
 - Minimal package dependency calculation.
@@ -75,7 +76,8 @@ inspect-deps /usr/bin/curl --tree
 
 ![Dependency tree example](preview/tree.png)
 
-> **Note**: Repeated nodes (diamonds) are marked with `(+)` and not expanded. Circular dependencies are marked with `(cycle)`.
+> **Note**: Repeated nodes (diamonds) are marked with `(+)` and not expanded. Circular dependencies are marked with
+`(cycle)`.
 
 #### List minimal packages:
 
