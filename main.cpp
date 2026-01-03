@@ -299,25 +299,100 @@ struct Node
     std::vector<std::string> parents;
 };
 
+std::vector<std::string> split_path(std::string_view s)
+{
+    if (s.empty()) return {};
+    return s | v::split(':')
+        | v::transform([](auto&& rng)
+        {
+            auto str = std::string(rng.begin(), rng.end());
+            return str.empty() ? "." : str;
+        })
+        | r::to<std::vector<std::string>>();
+}
+
 struct DepGraph
 {
     std::unordered_map<std::string, Node> nodes;
     std::string root_name;
     LdCache ld_cache;
     AlpmManager alpm;
+    std::vector<std::string> ld_paths;
+
+    std::optional<std::string> resolve_library(
+        const std::string& name,
+        const std::vector<std::string>& rpaths,
+        const std::vector<std::string>& runpaths,
+        const std::vector<std::string>& inherited_rpaths)
+    {
+        std::vector<std::string> search_paths;
+
+        // 1. RPATH (if no RUNPATH)
+        if (runpaths.empty())
+        {
+            search_paths.append_range(rpaths);
+            search_paths.append_range(inherited_rpaths);
+        }
+
+        // 2. LD_LIBRARY_PATH
+        search_paths.append_range(ld_paths);
+
+        // 3. RUNPATH
+        search_paths.append_range(runpaths);
+
+        for (const auto& dir : search_paths)
+        {
+            fs::path p = fs::path(dir) / name;
+            if (fs::exists(p)) return fs::absolute(p).string();
+        }
+
+        // 4. LdCache
+        if (auto res = ld_cache.resolve(name)) return *res;
+
+        // 5. Default paths
+        constexpr std::array<std::string_view, 4> defaults = {"/lib", "/usr/lib", "/lib64", "/usr/lib64"};
+        for (const auto& dir : defaults)
+        {
+            fs::path p = fs::path(dir) / name;
+            if (fs::exists(p)) return fs::absolute(p).string();
+        }
+
+        return std::nullopt;
+    }
 
     void build(const std::string& root_path, bool show_stdlib, bool resolve_packages = true)
     {
+        if (const char* env_p = std::getenv("LD_LIBRARY_PATH"))
+        {
+            std::string origin = fs::path(root_path).parent_path().string();
+            for (auto p : split_path(env_p))
+            {
+                size_t pos = 0;
+                while ((pos = p.find("$ORIGIN", pos)) != std::string::npos)
+                {
+                    p.replace(pos, 7, origin);
+                    pos += origin.length();
+                }
+                ld_paths.push_back(p);
+            }
+        }
+
         root_name = fs::path(root_path).filename().string();
         nodes[root_name] = {root_path, "", 0, {}, {}};
 
-        std::deque<std::string> q;
-        q.push_back(root_name);
-
-        while (!q.empty())
+        struct WorkItem
         {
-            std::string cur = q.front();
-            q.pop_front();
+            std::string name;
+            std::vector<std::string> inherited_rpaths;
+        };
+
+        std::vector<WorkItem> stack;
+        stack.push_back({root_name, {}});
+
+        while (!stack.empty())
+        {
+            auto [cur, inherited] = stack.back();
+            stack.pop_back();
 
             std::string cur_path = nodes[cur].path;
             if (cur_path.empty()) continue;
@@ -326,25 +401,44 @@ struct DepGraph
             if (!reader.load(cur_path)) continue;
 
             std::vector<std::string> needed;
+            std::vector<std::string> my_rpaths;
+            std::vector<std::string> my_runpaths;
 
-            ELFIO::section* dyn_sec = reader.sections[".dynamic"];
-            if (!dyn_sec) continue;
-
-            ELFIO::dynamic_section_accessor dyn(reader, dyn_sec);
-            ELFIO::Elf_Xword dyn_no = dyn.get_entries_num();
-            for (ELFIO::Elf_Xword i = 0; i < dyn_no; ++i)
+            if (auto* dyn_sec = reader.sections[".dynamic"])
             {
-                ELFIO::Elf_Xword tag;
-                ELFIO::Elf_Xword value;
-                std::string str;
-                dyn.get_entry(i, tag, value, str);
-                if (tag == ELFIO::DT_NEEDED)
+                ELFIO::dynamic_section_accessor dyn(reader, dyn_sec);
+                for (ELFIO::Elf_Xword i = 0; i < dyn.get_entries_num(); ++i)
                 {
-                    needed.push_back(str);
+                    ELFIO::Elf_Xword tag, value;
+                    std::string str;
+                    dyn.get_entry(i, tag, value, str);
+                    if (tag == ELFIO::DT_NEEDED) needed.push_back(str);
+                    else if (tag == ELFIO::DT_RPATH) my_rpaths = split_path(str);
+                    else if (tag == ELFIO::DT_RUNPATH) my_runpaths = split_path(str);
                 }
             }
 
-            for (const auto& lib : needed)
+            std::string origin = fs::path(cur_path).parent_path().string();
+            auto expand = [&](std::string& p)
+            {
+                size_t pos = 0;
+                while ((pos = p.find("$ORIGIN", pos)) != std::string::npos)
+                {
+                    p.replace(pos, 7, origin);
+                    pos += origin.length();
+                }
+            };
+            for (auto& p : my_rpaths) expand(p);
+            for (auto& p : my_runpaths) expand(p);
+
+            std::vector<std::string> next_inherited;
+            if (my_runpaths.empty())
+            {
+                next_inherited = my_rpaths;
+                next_inherited.append_range(inherited);
+            }
+
+            for (const auto& lib : v::reverse(needed))
             {
                 if (r::any_of(NOISE_PREFIX, [&](const auto& p) { return lib.starts_with(p); })) continue;
                 if (!show_stdlib && r::any_of(GLIBC_PREFIX, [&](const auto& p) { return lib.starts_with(p); }))
@@ -354,16 +448,20 @@ struct DepGraph
                 {
                     nodes[cur].children.push_back(lib);
                 }
+            }
+            r::reverse(nodes[cur].children);
 
+            for (const auto& lib : v::reverse(nodes[cur].children))
+            {
                 if (!nodes.contains(lib))
                 {
                     nodes[lib] = {"", "", nodes[cur].depth + 1, {}, {}};
                     nodes[lib].parents.push_back(cur);
 
-                    if (auto res = ld_cache.resolve(lib))
+                    if (auto res = resolve_library(lib, my_rpaths, my_runpaths, inherited))
                     {
                         nodes[lib].path = *res;
-                        q.push_back(lib);
+                        stack.push_back({lib, next_inherited});
                     }
                 }
                 else
@@ -450,7 +548,8 @@ void print_tree(const DepGraph& g, const std::string& root, const bool show_pkgs
     std::string reset = use_color ? "\033[0m" : "";
 
     std::unordered_set<std::string> seen;
-    auto rec = [&](auto&& self, const std::string& n, std::string pref, const bool last) -> void
+    auto rec = [&](auto&& self, const std::string& n, std::string pref, const bool last,
+                   std::unordered_set<std::string>& path) -> void
     {
         const auto& node = g.nodes.at(n);
         std::print("{}{} {}", pref, (last ? "└── " : "├── "), n);
@@ -460,10 +559,22 @@ void print_tree(const DepGraph& g, const std::string& root, const bool show_pkgs
             std::print(" {}[{}]", gray, (node.pkg.empty() ? "-" : node.pkg));
             if (use_color) std::print("{}", reset);
         }
+
+        if (path.contains(n))
+        {
+            std::println(" (cycle)");
+            return;
+        }
+
+        if (seen.contains(n))
+        {
+            std::println(" (+)");
+            return;
+        }
         std::println("");
 
-        if (seen.contains(n)) return;
         seen.insert(n);
+        path.insert(n);
 
         size_t i = 0;
         std::vector<std::string> sorted_children = node.children;
@@ -471,9 +582,10 @@ void print_tree(const DepGraph& g, const std::string& root, const bool show_pkgs
 
         for (const auto& child : sorted_children)
         {
-            self(self, child, pref + (last ? "    " : "│   "), i == sorted_children.size() - 1);
+            self(self, child, pref + (last ? "    " : "│   "), i == sorted_children.size() - 1, path);
             i++;
         }
+        path.erase(n);
     };
 
     const auto& root_node = g.nodes.at(root);
@@ -485,12 +597,16 @@ void print_tree(const DepGraph& g, const std::string& root, const bool show_pkgs
     }
     std::println("");
 
+    std::unordered_set<std::string> path;
+    path.insert(root);
+    seen.insert(root);
+
     size_t i = 0;
     std::vector<std::string> sorted_children = root_node.children;
     r::sort(sorted_children);
     for (const auto& child : sorted_children)
     {
-        rec(rec, child, "", i == sorted_children.size() - 1);
+        rec(rec, child, "", i == sorted_children.size() - 1, path);
         i++;
     }
 }
@@ -652,6 +768,8 @@ void generate_completions(const CLI::App& app, const std::string& shell)
 int main(int argc, char** argv)
 {
     CLI::App app{"inspect-deps: ELF dependency analyzer"};
+    app.footer(
+        "\nTree output markers:\n  (+)     Repeated node (diamond), not expanded\n  (cycle) Circular dependency");
 
     std::string elf_path;
     app.add_option("elf", elf_path, "Target binary");

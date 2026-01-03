@@ -5,7 +5,8 @@ A command-line tool for analyzing ELF shared library dependencies and optionally
 
 ## Features
 
-- Dependency tree visualization.
+- Dependency tree visualization (handles cycles).
+- RPATH/RUNPATH support (including $ORIGIN).
 - Package resolution via libalpm (Pacman).
 - Minimal package dependency calculation.
 - Explanation of library presence.
@@ -16,7 +17,6 @@ A command-line tool for analyzing ELF shared library dependencies and optionally
 
 - x86_64 architecture only.
 - Package resolution requires libalpm.
-- Simplified RPATH/RUNPATH handling.
 - Does not detect dlopen-loaded libraries.
 
 ## Requirements
@@ -74,6 +74,8 @@ inspect-deps /usr/bin/curl --tree
 ```
 
 ![Dependency tree example](preview/tree.png)
+
+> **Note**: Repeated nodes (diamonds) are marked with `(+)` and not expanded. Circular dependencies are marked with `(cycle)`.
 
 #### List minimal packages:
 
