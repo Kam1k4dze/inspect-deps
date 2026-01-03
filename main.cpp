@@ -343,7 +343,7 @@ struct DepGraph
         for (const auto& dir : search_paths)
         {
             fs::path p = fs::path(dir) / name;
-            if (fs::exists(p)) return fs::absolute(p).string();
+            if (fs::exists(p)) return fs::canonical(p).string();
         }
 
         // 4. LdCache
@@ -354,7 +354,7 @@ struct DepGraph
         for (const auto& dir : defaults)
         {
             fs::path p = fs::path(dir) / name;
-            if (fs::exists(p)) return fs::absolute(p).string();
+            if (fs::exists(p)) return fs::canonical(p).string();
         }
 
         return std::nullopt;
