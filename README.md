@@ -3,7 +3,6 @@
 A command-line tool for analyzing ELF shared library dependencies and optionally map them to Arch Linux packages.
 ![dot](preview/dot.png)
 
-
 ## Features
 
 - Dependency tree visualization.
@@ -20,9 +19,14 @@ A command-line tool for analyzing ELF shared library dependencies and optionally
 - Simplified RPATH/RUNPATH handling.
 - Does not detect dlopen-loaded libraries.
 
+## Requirements
+
+- Linux (x86_64)
+- libalpm (optional, for package resolution)
+
 ## Build
 
-Requirements:
+Build requirements:
 
 - CMake 3.28+
 - C++23 compiler (GCC 13+ or Clang 16+)
@@ -56,7 +60,7 @@ Options:
 - --no-pkg: Disable package resolution.
 - ANSI colors when stdout is TTY.
 
-Example:
+#### Example:
 
 ```bash
 inspect-deps /usr/bin/curl
@@ -72,13 +76,13 @@ inspect-deps /usr/bin/curl --tree
 
 ![Dependency tree example](preview/tree.png)
 
-List minimal packages:
+#### List minimal packages:
 
 ```bash
 inspect-deps /usr/bin/vim --pkg-list
 ```
 
-Explain library presence:
+#### Explain library presence:
 
 ```bash
 inspect-deps /usr/bin/curl --why libcrypto.so.3
@@ -86,20 +90,15 @@ inspect-deps /usr/bin/curl --why libcrypto.so.3
 
 ![Why example](preview/why.png)
 
-Export to JSON/DOT:
+#### Export to JSON/DOT:
 
 ```bash
 inspect-deps /usr/bin/git --json
 inspect-deps /usr/bin/git --dot > graph.dot
 ```
 
-Generate completions:
+#### Generate completions:
 
 ```bash
 inspect-deps --completions fish > ~/.config/fish/completions/inspect-deps.fish
 ```
-
-## Requirements
-
-- Linux (x86_64)
-- libalpm (optional, for package resolution)
