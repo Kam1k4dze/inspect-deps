@@ -21,7 +21,7 @@ A command-line tool for analyzing ELF shared library dependencies. It walks the 
 ## Build
 
 Requirements:
-- CMake 3.25+
+- CMake 3.28+
 - C++23 compiler (GCC 13+ or Clang 16+)
 - `pkg-config` (for finding libalpm)
 

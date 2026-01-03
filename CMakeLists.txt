@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.28)
 project(inspect-deps)
 
 set(CMAKE_CXX_STANDARD 23)
@@ -16,13 +16,12 @@ endif ()
 include(FetchContent)
 set(FETCHCONTENT_QUIET FALSE)
 
-set(CMAKE_SKIP_INSTALL_RULES ON)
-
 FetchContent_Declare(
         CLI11
         GIT_REPOSITORY https://github.com/CLIUtils/CLI11.git
         GIT_TAG v2.6.1
         GIT_SHALLOW TRUE
+        EXCLUDE_FROM_ALL
 )
 FetchContent_MakeAvailable(CLI11)
 
@@ -31,6 +30,7 @@ FetchContent_Declare(
         GIT_REPOSITORY https://github.com/stephenberry/glaze.git
         GIT_TAG v6.5.0
         GIT_SHALLOW TRUE
+        EXCLUDE_FROM_ALL
 )
 FetchContent_MakeAvailable(glaze)
 
@@ -39,10 +39,10 @@ FetchContent_Declare(
         GIT_REPOSITORY https://github.com/serge1/ELFIO.git
         GIT_TAG Release_3.12
         GIT_SHALLOW TRUE
+        EXCLUDE_FROM_ALL
 )
 FetchContent_MakeAvailable(elfio)
 
-set(CMAKE_SKIP_INSTALL_RULES OFF)
 
 add_executable(inspect-deps main.cpp)
 target_link_libraries(inspect-deps PRIVATE CLI11::CLI11 glaze::glaze elfio::elfio ${CMAKE_DL_LIBS})
