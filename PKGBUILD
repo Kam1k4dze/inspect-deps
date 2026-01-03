@@ -2,7 +2,7 @@
 pkgname=inspect-deps
 pkgver=1.1.1
 pkgrel=1
-pkgdesc="ELF dependency analyzer with optional pacman integration"
+pkgdesc="Static ELF dependency analyzer with optional pacman integration"
 arch=('x86_64')
 url="https://github.com/Kam1k4dze/inspect-deps"
 license=('MIT')

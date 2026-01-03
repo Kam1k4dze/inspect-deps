@@ -1,6 +1,6 @@
 # inspect-deps
 
-A command-line tool for analyzing ELF shared library dependencies and optionally map them to Arch Linux packages.
+A command-line tool to statically analyze ELF shared library dependencies and optionally map them to Arch Linux packages.
 ![dot](preview/dot.png)
 
 ## Features

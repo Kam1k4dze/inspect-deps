@@ -767,7 +767,7 @@ void generate_completions(const CLI::App& app, const std::string& shell)
 
 int main(int argc, char** argv)
 {
-    CLI::App app{"inspect-deps: ELF dependency analyzer"};
+    CLI::App app{"inspect-deps: Static ELF dependency analyzer"};
     app.footer(
         "\nTree output markers:\n  (+)     Repeated node (diamond), not expanded\n  (cycle) Circular dependency");
 
