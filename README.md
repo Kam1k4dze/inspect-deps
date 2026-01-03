@@ -30,7 +30,6 @@ Build requirements:
 
 - CMake 3.28+
 - C++23 compiler (GCC 13+ or Clang 16+)
-- pkg-config
 
 ```bash
 cmake -S . -B build
