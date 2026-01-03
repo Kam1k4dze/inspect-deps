@@ -534,11 +534,20 @@ void explain_why(const DepGraph& g, const std::string& target)
 
 void generate_completions(const CLI::App& app, const std::string& shell)
 {
+    std::vector<const CLI::Option*> all_options = app.get_options();
+    for (const auto* group : app.get_subcommands([](const CLI::App*) { return true; }))
+    {
+        for (const auto* opt : group->get_options())
+        {
+            all_options.push_back(opt);
+        }
+    }
+
     if (shell == "fish")
     {
         std::println("# fish completion for inspect-deps");
 
-        for (const auto* opt : app.get_options())
+        for (const auto* opt : all_options)
         {
             if (opt->get_name().empty()) continue;
 
@@ -547,6 +556,8 @@ void generate_completions(const CLI::App& app, const std::string& shell)
 
             for (const auto& name : opt->get_snames()) short_opt = name;
             for (const auto& name : opt->get_lnames()) long_opt = name;
+
+            if (short_opt.empty() && long_opt.empty()) continue;
 
             std::print("complete -c inspect-deps");
             if (!short_opt.empty()) std::print(" -s {}", short_opt);
@@ -572,7 +583,7 @@ void generate_completions(const CLI::App& app, const std::string& shell)
         std::println("#compdef inspect-deps=inspect-deps");
         std::println("_arguments -s \\");
 
-        for (const auto* opt : app.get_options())
+        for (const auto* opt : all_options)
         {
             if (opt->get_name().empty()) continue;
 
@@ -580,6 +591,8 @@ void generate_completions(const CLI::App& app, const std::string& shell)
             std::string long_opt;
             for (const auto& name : opt->get_snames()) short_opt = name;
             for (const auto& name : opt->get_lnames()) long_opt = name;
+
+            if (short_opt.empty() && long_opt.empty()) continue;
 
             std::print("    '");
             if (!short_opt.empty()) std::print("-{}", short_opt);
@@ -614,7 +627,7 @@ void generate_completions(const CLI::App& app, const std::string& shell)
         std::println("    prev=\"${{COMP_WORDS[COMP_CWORD-1]}}\"");
 
         std::print("    opts=\"");
-        for (const auto* opt : app.get_options())
+        for (const auto* opt : all_options)
         {
             for (const auto& name : opt->get_snames()) std::print("-{} ", name);
             for (const auto& name : opt->get_lnames()) std::print("--{} ", name);
