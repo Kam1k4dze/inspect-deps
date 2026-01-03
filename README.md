@@ -1,6 +1,8 @@
 # inspect-deps
 
 A command-line tool for analyzing ELF shared library dependencies and mapping them to Arch Linux packages.
+![dot](preview/dot.png)
+
 
 ## Features
 
@@ -60,21 +62,15 @@ Example:
 inspect-deps /usr/bin/curl
 ```
 
-Output:
+![Default output example](preview/default.png)
 
-```
-Library               Package          Depth  Required By
-curl                  -                0      -
-libcurl.so.4          curl             1      curl
-libssl.so.3           openssl          2      libcrypto.so.3 (+)
-libcrypto.so.3        openssl          2      libcurl.so.4
-```
-
-Show dependency tree:
+#### Show dependency tree
 
 ```bash
 inspect-deps /usr/bin/curl --tree
 ```
+
+![Dependency tree example](preview/tree.png)
 
 List minimal packages:
 
@@ -85,8 +81,10 @@ inspect-deps /usr/bin/vim --pkg-list
 Explain library presence:
 
 ```bash
-inspect-deps /usr/bin/curl --why libssl.so.3
+inspect-deps /usr/bin/curl --why libcrypto.so.3
 ```
+
+![Why example](preview/why.png)
 
 Export to JSON/DOT:
 
