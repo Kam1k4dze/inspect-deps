@@ -4,10 +4,10 @@ project(inspect-deps)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
     message(STATUS "CMAKE_BUILD_TYPE not specified — defaulting to Release")
-endif()
+endif ()
 
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
@@ -15,6 +15,8 @@ endif ()
 
 include(FetchContent)
 set(FETCHCONTENT_QUIET FALSE)
+
+set(CMAKE_SKIP_INSTALL_RULES ON)
 
 FetchContent_Declare(
         CLI11
@@ -40,7 +42,12 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(elfio)
 
+set(CMAKE_SKIP_INSTALL_RULES OFF)
+
 add_executable(inspect-deps main.cpp)
 target_link_libraries(inspect-deps PRIVATE CLI11::CLI11 glaze::glaze elfio::elfio ${CMAKE_DL_LIBS})
 
 target_link_options(inspect-deps PRIVATE -static-libgcc -static-libstdc++)
+
+include(GNUInstallDirs)
+install(TARGETS inspect-deps DESTINATION ${CMAKE_INSTALL_BINDIR})
