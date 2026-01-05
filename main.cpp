@@ -492,6 +492,14 @@ struct DepGraph
     std::vector<std::string> get_minimal_pkgs()
     {
         std::unordered_map<std::string, std::string> lib_to_pkg;
+        std::string root_pkg_name;
+
+        if (nodes.contains(root_name))
+        {
+            root_pkg_name = nodes.at(root_name).pkg;
+        }
+        bool has_root_pkg = !root_pkg_name.empty() && root_pkg_name != "-";
+
         for (const auto& [l, n] : nodes)
         {
             if (!n.pkg.empty() && n.pkg != "-") lib_to_pkg[l] = n.pkg;
@@ -501,16 +509,28 @@ struct DepGraph
 
         for (const auto& [parent, node] : nodes)
         {
-            std::string p_pkg = lib_to_pkg.contains(parent)
-                                    ? lib_to_pkg[parent]
-                                    : (parent == root_name ? "__ROOT__" : "");
-            if (p_pkg.empty()) continue;
+            std::string p_pkg;
+            if (parent == root_name)
+            {
+                p_pkg = "__ROOT__";
+            }
+            else if (lib_to_pkg.contains(parent))
+            {
+                p_pkg = lib_to_pkg[parent];
+                if (has_root_pkg && p_pkg == root_pkg_name) p_pkg = "__ROOT__";
+            }
+            else
+            {
+                continue;
+            }
 
             for (const auto& child : node.children)
             {
                 if (lib_to_pkg.contains(child))
                 {
                     std::string c_pkg = lib_to_pkg[child];
+                    if (has_root_pkg && c_pkg == root_pkg_name) c_pkg = "__ROOT__";
+
                     if (c_pkg != p_pkg) pkg_deps[p_pkg].insert(c_pkg);
                 }
             }
@@ -542,7 +562,7 @@ struct JsonOutput
     std::vector<std::string> minimal_packages;
 };
 
-void print_tree(const DepGraph& g, const std::string& root, const bool show_pkgs, const bool use_color)
+void print_tree(const DepGraph& g, const std::string& root, const bool show_pkgs, const bool use_color, bool full_path)
 {
     std::string gray = use_color ? "\033[90m" : "";
     std::string reset = use_color ? "\033[0m" : "";
@@ -552,7 +572,8 @@ void print_tree(const DepGraph& g, const std::string& root, const bool show_pkgs
                    std::unordered_set<std::string>& path) -> void
     {
         const auto& node = g.nodes.at(n);
-        std::print("{}{} {}", pref, (last ? "└── " : "├── "), n);
+        std::string display_name = (full_path && !node.path.empty()) ? node.path : n;
+        std::print("{}{} {}", pref, (last ? "└── " : "├── "), display_name);
 
         if (show_pkgs)
         {
@@ -589,7 +610,8 @@ void print_tree(const DepGraph& g, const std::string& root, const bool show_pkgs
     };
 
     const auto& root_node = g.nodes.at(root);
-    std::print("{}", root);
+    std::string root_display = (full_path && !root_node.path.empty()) ? root_node.path : root;
+    std::print("{}", root_display);
     if (show_pkgs)
     {
         std::print(" {}[{}]", gray, (root_node.pkg.empty() ? "-" : root_node.pkg));
@@ -611,12 +633,58 @@ void print_tree(const DepGraph& g, const std::string& root, const bool show_pkgs
     }
 }
 
-void explain_why(const DepGraph& g, const std::string& target)
+void explain_why(const DepGraph& g, const std::string& target_in, bool full_path)
 {
+    std::string target = target_in;
     if (!g.nodes.contains(target))
     {
-        std::println(std::cerr, "Library {} not found in dependency graph.", target);
-        return;
+        bool found = false;
+        // 1. Try matching full path
+        for (const auto& [k, n] : g.nodes)
+        {
+            if (n.path == target)
+            {
+                target = k;
+                found = true;
+                break;
+            }
+        }
+
+        // 2. Try matching canonical path
+        if (!found && fs::exists(target_in))
+        {
+            std::error_code ec;
+            std::string canonical = fs::canonical(target_in, ec).string();
+            if (!ec)
+            {
+                for (const auto& [k, n] : g.nodes)
+                {
+                    if (n.path == canonical)
+                    {
+                        target = k;
+                        found = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 3. Try matching filename
+        if (!found)
+        {
+            std::string fname = fs::path(target_in).filename().string();
+            if (g.nodes.contains(fname))
+            {
+                target = fname;
+                found = true;
+            }
+        }
+
+        if (!found)
+        {
+            std::println(std::cerr, "Library {} not found in dependency graph.", target_in);
+            return;
+        }
     }
 
     auto dfs = [&](auto&& self, const std::string& cur, std::vector<std::string>& path) -> void
@@ -624,8 +692,15 @@ void explain_why(const DepGraph& g, const std::string& target)
         if (cur == g.root_name)
         {
             path.push_back(cur);
-            for (const auto& p : v::reverse(path)) std::print("{} -> ", p);
-            std::println("{}", target);
+            for (const auto& p : v::reverse(path))
+            {
+                std::string display_name = (full_path && !g.nodes.at(p).path.empty()) ? g.nodes.at(p).path : p;
+                std::print("{} -> ", display_name);
+            }
+            std::string target_display = (full_path && !g.nodes.at(target).path.empty())
+                                             ? g.nodes.at(target).path
+                                             : target;
+            std::println("{}", target_display);
             path.pop_back();
             return;
         }
@@ -781,13 +856,15 @@ int main(int argc, char** argv)
     bool no_header = false;
     bool show_dot = false;
     bool no_pkg = false;
+    bool show_full_path = false;
     std::string why_lib;
     std::string completion_shell;
 
     auto* mode = app.add_option_group("Mode");
     mode->add_flag("--tree", show_tree, "Show dependency tree");
     mode->add_flag("--json", show_json, "Output in JSON format");
-    mode->add_flag("--pkg-list", show_pkg_list, "Show list of packages (Arch Linux only)");
+    mode->add_flag("--pkg-list", show_pkg_list,
+                   "List minimal set of packages required by the binary (Arch Linux only)");
     mode->add_option("--why", why_lib, "Explain why a library is needed");
     mode->add_flag("--dot", show_dot, "Output DOT graph");
 
@@ -797,6 +874,7 @@ int main(int argc, char** argv)
     app.add_flag("--show-stdlib", show_stdlib, "Show standard library dependencies");
     app.add_flag("--no-header", no_header, "Disable output header");
     app.add_flag("--no-pkg", no_pkg, "Disable package resolution");
+    app.add_flag("--full-path", show_full_path, "Show full library paths");
 
     CLI11_PARSE(app, argc, argv);
 
@@ -848,7 +926,7 @@ int main(int argc, char** argv)
     }
     else if (show_tree)
     {
-        print_tree(graph, graph.root_name, !no_pkg && graph.alpm.is_available(), use_color);
+        print_tree(graph, graph.root_name, !no_pkg && graph.alpm.is_available(), use_color, show_full_path);
     }
     else if (show_pkg_list)
     {
@@ -866,7 +944,7 @@ int main(int argc, char** argv)
     }
     else if (!why_lib.empty())
     {
-        explain_why(graph, why_lib);
+        explain_why(graph, why_lib, show_full_path);
     }
     else if (show_dot)
     {
@@ -874,9 +952,16 @@ int main(int argc, char** argv)
         std::println("  rankdir=LR;");
         for (const auto& [p, n] : graph.nodes)
         {
+            std::string p_name = (show_full_path && !n.path.empty()) ? n.path : p;
             for (const auto& c : n.children)
             {
-                std::println(R"(  "{}" -> "{}";)", p, c);
+                std::string c_name = c;
+                if (show_full_path && graph.nodes.contains(c))
+                {
+                    const auto& c_node = graph.nodes.at(c);
+                    if (!c_node.path.empty()) c_name = c_node.path;
+                }
+                std::println(R"(  "{}" -> "{}";)", p_name, c_name);
             }
         }
         std::println("}}");
@@ -884,7 +969,11 @@ int main(int argc, char** argv)
     else
     {
         size_t w = 0;
-        for (const auto& k : graph.nodes | std::views::keys) w = std::max(w, k.length());
+        for (const auto& [k, n] : graph.nodes)
+        {
+            size_t len = (show_full_path && !n.path.empty()) ? n.path.length() : k.length();
+            w = std::max(w, len);
+        }
 
         bool show_pkgs = graph.alpm.is_available() && !no_pkg;
 
@@ -911,17 +1000,28 @@ int main(int argc, char** argv)
         for (const auto& k : sorted_keys)
         {
             const auto& n = graph.nodes.at(k);
-            std::string parent = n.parents.empty() ? "-" : n.parents[0];
-            if (n.parents.size() > 1) parent += " (+)";
+            std::string parent = "-";
+            if (!n.parents.empty())
+            {
+                parent = n.parents[0];
+                if (show_full_path && graph.nodes.contains(parent))
+                {
+                    const auto& p_node = graph.nodes.at(parent);
+                    if (!p_node.path.empty()) parent = p_node.path;
+                }
+                if (n.parents.size() > 1) parent += " (+)";
+            }
+
+            std::string display_name = (show_full_path && !n.path.empty()) ? n.path : k;
 
             if (show_pkgs)
             {
                 std::string pkg_str = n.pkg.empty() ? "-" : n.pkg;
-                std::println("{:<{}}  {:<16} {:<6} {}", k, w + 2, pkg_str.substr(0, 14), n.depth, parent);
+                std::println("{:<{}}  {:<16} {:<6} {}", display_name, w + 2, pkg_str.substr(0, 14), n.depth, parent);
             }
             else
             {
-                std::println("{:<{}}  {:<6} {}", k, w + 2, n.depth, parent);
+                std::println("{:<{}}  {:<6} {}", display_name, w + 2, n.depth, parent);
             }
         }
     }

@@ -45,30 +45,36 @@ pacman/libalpm.
 
 ## Usage
 
-Default output (no mode flags): Compact tabular summary of libraries.
+```bash
+inspect-deps [options] <binary> [mode]
+```
+
+### Global Options
+
+These options apply to all output modes:
+
+- `--no-pkg`: Disable package resolution.
+- `--full-path`: Show full library paths instead of SONAMEs.
+- `--show-stdlib`: Show standard library dependencies (glibc, etc.).
+- `--no-header`: Suppress header (for default output).
+- ANSI colors are used automatically when stdout is a TTY.
+
+### Modes
+
+#### Default (no mode flag)
+
+Compact tabular summary of libraries.
 
 Columns:
 
-- Library: SONAME.
+- Library: SONAME (or full path with `--full-path`).
 - Package: Arch package (if libalpm available and enabled).
 - Depth: Graph distance from root.
 - Required By: Immediate parent (or "-" if none; "(+)" for multiple).
 
-Options:
+#### Dependency Tree (`--tree`)
 
-- --no-header: Suppress header.
-- --no-pkg: Disable package resolution.
-- ANSI colors when stdout is TTY.
-
-#### Example:
-
-```bash
-inspect-deps /usr/bin/curl
-```
-
-![Default output example](preview/default.png)
-
-#### Show dependency tree
+Visualizes the dependency graph.
 
 ```bash
 inspect-deps /usr/bin/curl --tree
@@ -79,13 +85,19 @@ inspect-deps /usr/bin/curl --tree
 > **Note**: Repeated nodes (diamonds) are marked with `(+)` and not expanded. Circular dependencies are marked with
 `(cycle)`.
 
-#### List minimal packages:
+#### Package List (`--pkg-list`)
+
+List minimal set of packages required by the binary.
+**Note**: If the binary itself belongs to a package, that package is excluded from the list, showing only external dependencies.
 
 ```bash
-inspect-deps /usr/bin/vim --pkg-list
+inspect-deps /usr/bin/curl --pkg-list
+> brotli krb5 libnghttp2 libnghttp3 libpsl libssh2 zstd
 ```
 
-#### Explain library presence:
+#### Explain (`--why <lib>`)
+
+Explain why a library is needed (shows dependency chain).
 
 ```bash
 inspect-deps /usr/bin/curl --why libcrypto.so.3
@@ -93,7 +105,9 @@ inspect-deps /usr/bin/curl --why libcrypto.so.3
 
 ![Why example](preview/why.png)
 
-#### Export to JSON/DOT:
+#### JSON / DOT (`--json`, `--dot`)
+
+Export dependency graph.
 
 ```bash
 inspect-deps /usr/bin/git --json
