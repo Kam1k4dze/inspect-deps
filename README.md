@@ -72,6 +72,14 @@ Columns:
 - Depth: Graph distance from root.
 - Required By: Immediate parent (or "-" if none; "(+)" for multiple).
 
+#### Example:
+
+```bash
+inspect-deps /usr/bin/curl
+```
+
+![Default output example](preview/default.png)
+
 #### Dependency Tree (`--tree`)
 
 Visualizes the dependency graph.
