@@ -573,7 +573,7 @@ void print_tree(const DepGraph& g, const std::string& root, const bool show_pkgs
     {
         const auto& node = g.nodes.at(n);
         std::string display_name = (full_path && !node.path.empty()) ? node.path : n;
-        std::print("{}{} {}", pref, (last ? "└── " : "├── "), display_name);
+        std::print("{}{} {}", pref, (last ? "└──" : "├──"), display_name);
 
         if (show_pkgs)
         {
